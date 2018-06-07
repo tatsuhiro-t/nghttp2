@@ -1,50 +1,65 @@
-dist: trusty
-env:
-  matrix:
-    - CI_BUILD=cmake
-    - CI_BUILD=autotools
 language: cpp
+dist: trusty
+sudo: required
+
+env:
+  global:
+    - CI_BOOST_VERSION=1.65.1
+    - CI_CMAKE_VERSION=3.10.2
+  matrix:
+    - CI_BUILD=cmake CI_BUILD_TYPE=Debug
+    - CI_BUILD=autotools CI_BUILD_TYPE=Debug
+
 compiler:
   - clang
   - gcc
-sudo: required
+
 addons:
   apt:
     sources:
-    - ubuntu-toolchain-r-test
+      - ubuntu-toolchain-r-test
     packages:
-    - g++-7
-    - autoconf
-    - automake
-    - autotools-dev
-    - libtool
-    - pkg-config
-    - zlib1g-dev
-    - libcunit1-dev
-    - libssl-dev
-    - libxml2-dev
-    - libev-dev
-    - libevent-dev
-    - libjansson-dev
-    - libjemalloc-dev
-    - libc-ares-dev
-    - cmake
-    - cmake-data
+      - g++-7
+      - autoconf
+      - automake
+      - autotools-dev
+      - libtool
+      - pkg-config
+      - zlib1g-dev
+      - libcunit1-dev
+      - libssl-dev
+      - libxml2-dev
+      - libev-dev
+      - libevent-dev
+      - libjansson-dev
+      - libjemalloc-dev
+      - libc-ares-dev
+
 before_install:
-  - $CC --version
-  - if [ "$CXX" = "g++" ]; then export CXX="g++-7" CC="gcc-7"; fi
-  - $CC --version
+  - ${CC} --version
+  - ${CXX} --version
+  - if [[ "$CC" = "gcc" ]]; then echo "Switch gcc version"; export CXX="g++-7" CC="gcc-7"; fi
+  - ${CC} --version
+  - ${CXX} --version
   - go version
-  - cmake --version
+
+  - if [[ "${CI_BUILD}" = "cmake" ]]; then source travis/install_cmake.sh; fi
+  - if [[ "${CI_BUILD}" = "cmake" ]]; then source travis/install_boost.sh; fi
+
 before_script:
-  # Now build nghttp2
-  - if [ "$CI_BUILD" = "autotools" ]; then autoreconf -i; fi
-  - git submodule update --init
-  - if [ "$CI_BUILD" = "autotools" ]; then ./configure --with-mruby; fi
-  - if [ "$CI_BUILD" = "cmake" ]; then cmake -DENABLE_WERROR=1 -DWITH_MRUBY=1 -DWITH_NEVERBLEED=1; fi
+  - if [[ "${CI_BUILD}" = "autotools" ]]; then cd ${TRAVIS_BUILD_DIR}; fi
+  - if [[ "${CI_BUILD}" = "autotools" ]]; then autoreconf -i; fi
+  - if [[ "${CI_BUILD}" = "autotools" ]]; then ./configure --with-mruby; fi
+  
+  - CI_CMAKE_OPTIONS="-DCMAKE_BUILD_TYPE=${CI_BUILD_TYPE} -DBOOST_ROOT=${CI_BOOST_ROOT} -DENABLE_ASIO_LIB=ON -DENABLE_WERROR=ON -DWITH_MRUBY=ON -DWITH_NEVERBLEED=ON"
+  - if [[ "${CI_BUILD}" = "cmake" ]]; then mkdir -p ${HOME}/build && cd ${HOME}/build && cmake ${CI_CMAKE_OPTIONS} ${TRAVIS_BUILD_DIR}; fi
+
 script:
-  - if [ "$CI_BUILD" = "autotools" ]; then make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-mruby --with-neverbleed --enable-werror CPPFLAGS=-fsanitize=address LDFLAGS=\"-fsanitize=address -fuse-ld=gold\""; fi
-  - if [ "$CI_BUILD" = "cmake" ]; then make check; fi
+  - if [[ "$CI_BUILD" = "autotools" ]]; then make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-mruby --with-neverbleed --enable-werror CPPFLAGS=-fsanitize=address LDFLAGS=\"-fsanitize=address -fuse-ld=gold\""; fi
+
+  - if [[ "$CI_BUILD" = "cmake" ]]; then cmake --build . --target all; fi
+  - if [[ "$CI_BUILD" = "cmake" ]]; then ctest --output-on-failure; fi
+
   # As of April, 23, 2016, golang http2 build fails, probably because
   # the default go version is too old.
   # - cd integration-tests

@@ -35,7 +35,7 @@ namespace client {
 
 class response_impl;
 
-class response {
+class NGHTTP2_ASIO_EXTERN response {
 public:
   // Application must not call this directly.
   response();
@@ -59,19 +59,25 @@ public:
   response_impl &impl() const;
 
 private:
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
   std::unique_ptr<response_impl> impl_;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 };
 
 class request;
 
 using response_cb = std::function<void(const response &)>;
 using request_cb = std::function<void(const request &)>;
-using connect_cb =
-    std::function<void(boost::asio::ip::tcp::resolver::iterator)>;
+using connect_cb = std::function<void(boost::asio::ip::tcp::resolver::iterator)>;
 
 class request_impl;
 
-class request {
+class NGHTTP2_ASIO_EXTERN request {
 public:
   // Application must not call this directly.
   request();
@@ -115,11 +121,18 @@ public:
   request_impl &impl() const;
 
 private:
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
   std::unique_ptr<request_impl> impl_;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 };
 
 // Wrapper around an nghttp2_priority_spec.
-class priority_spec {
+class NGHTTP2_ASIO_EXTERN priority_spec {
 public:
   // The default ctor is used only by sentinel values.
   priority_spec() = default;
@@ -142,7 +155,7 @@ private:
 
 class session_impl;
 
-class session {
+class NGHTTP2_ASIO_EXTERN session {
 public:
   // Starts HTTP/2 session by connecting to |host| and |service|
   // (e.g., "80") using clear text TCP connection with connect timeout
@@ -223,12 +236,19 @@ public:
                         priority_spec prio = priority_spec()) const;
 
 private:
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
   std::shared_ptr<session_impl> impl_;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 };
 
 // configure |tls_ctx| for client use.  Currently, we just set NPN
 // callback for HTTP/2.
-boost::system::error_code
+NGHTTP2_ASIO_EXTERN boost::system::error_code
 configure_tls_context(boost::system::error_code &ec,
                       boost::asio::ssl::context &tls_ctx);
 

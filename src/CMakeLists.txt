@@ -1,5 +1,9 @@
 add_subdirectory(includes)
 
+if(MSVC)
+    add_definitions(-DNOMINMAX -D_SCL_SECURE_NO_WARNINGS)
+endif()
+
 file(GLOB c_sources *.c)
 set_source_files_properties(${c_sources} PROPERTIES
   COMPILE_FLAGS "${WARNCFLAGS}")
@@ -164,7 +168,7 @@ if(ENABLE_APP)
       template_test.cc
       base64_test.cc
     )
-    add_executable(nghttpx-unittest EXCLUDE_FROM_ALL
+    add_executable(nghttpx-unittest
       ${NGHTTPX_UNITTEST_SOURCES}
       $<TARGET_OBJECTS:http-parser>
     )
@@ -241,26 +245,43 @@ if(ENABLE_ASIO_LIB)
     asio_client_tls_context.cc
   )
 
+  set(NGHTTP2_ASIO_RES "")
+
+  if(WIN32)
+    configure_file(
+      nghttp2_asio.rc.in
+      ${CMAKE_CURRENT_BINARY_DIR}/nghttp2_asio.rc
+      @ONLY)
+
+    set(NGHTTP2_ASIO_RES ${CMAKE_CURRENT_BINARY_DIR}/nghttp2_asio.rc)
+  endif()
+
   add_library(nghttp2_asio SHARED
      ${NGHTTP2_ASIO_SOURCES}
+     ${NGHTTP2_ASIO_RES}
      $<TARGET_OBJECTS:http-parser>
   )
-  target_include_directories(nghttp2_asio PRIVATE
-    ${OPENSSL_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
+
+  set_target_properties(nghttp2 PROPERTIES
+    COMPILE_FLAGS "${WARNCFLAGS}"
+    VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
+    CXX_VISIBILITY_PRESET hidden
   )
+
   target_include_directories(nghttp2_asio INTERFACE
     "${CMAKE_CURRENT_BINARY_DIR}/../lib/includes"
     "${CMAKE_CURRENT_SOURCE_DIR}/../lib/includes"
     "${CMAKE_CURRENT_SOURCE_DIR}/includes"
   )
+
   target_link_libraries(nghttp2_asio
     nghttp2
-    ${OPENSSL_LIBRARIES}
-    ${Boost_LIBRARIES}
+    Boost::disable_autolinking
+    Boost::thread
+    OpenSSL::SSL
   )
-  set_target_properties(nghttp2_asio PROPERTIES
-    VERSION 1.0.0 SOVERSION 1)
+  
+  target_compile_definitions(nghttp2_asio PRIVATE BUILDING_NGHTTP2_ASIO)
 
   install(TARGETS nghttp2_asio
     DESTINATION "${CMAKE_INSTALL_LIBDIR}")
